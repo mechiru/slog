@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slog-example
+spec:
+  template:
+    spec:
+      containers:
+      - name: slog-example
+        image: mechiru/slog-example:v0.0.1
+        env:
+          - name: PROJECT
+            value: "your-project-id"
+      restartPolicy: OnFailure
