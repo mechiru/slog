@@ -178,8 +178,8 @@ func logWithSpan(w io.Writer, s Severity, span trace.Span, loc *SourceLocation, 
 		if span.IsRecording() && spanCtx.HasTraceID() && spanCtx.HasSpanID() {
 			log(w, Entry{
 				Severity:       s.String(),
-				Trace:          fmt.Sprintf("projects/%s/traces/%s", projectID, spanCtx.TraceIDString()),
-				SpanID:         spanCtx.SpanIDString(),
+				Trace:          fmt.Sprintf("projects/%s/traces/%s", projectID, spanCtx.TraceID.String()),
+				SpanID:         spanCtx.SpanID.String(),
 				SourceLocation: loc,
 				Message:        msg,
 			})
