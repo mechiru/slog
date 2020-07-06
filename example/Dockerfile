@@ -2,13 +2,12 @@ ARG GOVERSION=1.14
 ARG OS=buster
 
 FROM golang:${GOVERSION}-${OS} AS builder
-WORKDIR /go/src/github.com/mechiru/slog/example
-ENV GO111MODULE=on
+WORKDIR /app
 COPY ./ ./
 RUN apt-get update -y \
 	&& apt-get install ca-certificates -y \
 	&& update-ca-certificates \
-	&& CGO_ENABLED=0 go build -v -mod=readonly -o=/app/main
+	&& GO111MODULE=on CGO_ENABLED=0 go build -v -mod=mod -o=/app/main example/main.go
 
 FROM debian:${OS} AS runtime
 WORKDIR /app
