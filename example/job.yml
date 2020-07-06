@@ -7,7 +7,7 @@ spec:
     spec:
       containers:
       - name: slog-example
-        image: mechiru/slog-example:v0.0.1
+        image: mechiru/slog-example:v0.2.0
         env:
           - name: PROJECT
             value: "your-project-id"
