@@ -27,25 +27,25 @@ func main() {
 	slog.Debug("Debug/debug message")
 	slog.DebugWithSpan(span, "DebugWithSpan/debug message")
 	slog.DebugWithCtx(ctx, "DebugWithCtx/debug message")
-	wait()
+	sleep()
 
 	slog.Info("Info/info message")
 	slog.InfoWithSpan(span, "InfoWithSpan/info message")
 	slog.InfoWithCtx(ctx, "InfoWithCtx/info message")
-	wait()
+	sleep()
 
 	slog.Warn("Warn/warn message")
 	slog.WarnWithSpan(span, "WarnWithSpan/warn message")
 	slog.WarnWithCtx(ctx, "WarnWithCtx/warn message")
-	wait()
+	sleep()
 
 	slog.Error("Error/error message")
 	slog.ErrorWithSpan(span, "ErrorWithSpan/error message")
 	slog.ErrorWithCtx(ctx, "ErrorWithCtx/error message")
-	wait()
+	sleep()
 }
 
-func wait() { time.Sleep(500 * time.Millisecond) }
+func sleep() { time.Sleep(500 * time.Millisecond) }
 
 func setupExporter(ctx context.Context, projectID string) error {
 	exporter, err := texporter.NewExporter(
