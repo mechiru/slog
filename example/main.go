@@ -14,7 +14,7 @@ import (
 func main() {
 	projectID := os.Getenv("PROJECT")
 
-	slog.Setup(projectID /*, slog.WithLogLevel(slog.SeverityWarning)*/)
+	slog.Setup(projectID /*, slog.WithSeverity(slog.SeverityWarning)*/)
 
 	ctx := context.Background()
 	setupExporter(ctx, projectID)

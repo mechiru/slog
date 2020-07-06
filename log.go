@@ -29,9 +29,9 @@ var (
 // An Option is an option for a slog package.
 type Option func()
 
-// WithLogLevel returns an Option that specifies a log level.
+// WithSeverity returns an Option that specifies a log level.
 // Default log level is SeverityDebug.
-func WithLogLevel(lvl Severity) Option {
+func WithSeverity(lvl Severity) Option {
 	return func() { logLevel = lvl }
 }
 
