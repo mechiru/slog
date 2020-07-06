@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"runtime"
+	"runtime/debug"
 	"sync"
 
 	"go.opentelemetry.io/otel/api/trace"
@@ -172,6 +173,11 @@ func Error(msg string) {
 	logWithLevel(os.Stdout, SeverityError, newSourceLocation(runtime.Caller(1)), msg)
 }
 
+// ReportError outputs a log with stacktrace so that error reporting can recognize the error.
+func ReportError(msg string) {
+	logWithLevel(os.Stdout, SeverityError, newSourceLocation(runtime.Caller(1)), fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
+}
+
 func logWithSpan(w io.Writer, s Severity, span trace.Span, loc *SourceLocation, msg string) {
 	if Enabled(s) {
 		spanCtx := span.SpanContext()
@@ -213,6 +219,11 @@ func ErrorWithSpan(span trace.Span, msg string) {
 	logWithSpan(os.Stdout, SeverityError, span, newSourceLocation(runtime.Caller(1)), msg)
 }
 
+// ReportErrorWithSpan outputs a log with stacktrace so that error reporting can recognize the error.
+func ReportErrorWithSpan(span trace.Span, msg string) {
+	logWithSpan(os.Stdout, SeverityError, span, newSourceLocation(runtime.Caller(1)), fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
+}
+
 // DebugWithCtx logs a message at SeverityDebug.
 func DebugWithCtx(ctx context.Context, msg string) {
 	logWithSpan(os.Stdout, SeverityDebug, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), msg)
@@ -231,4 +242,9 @@ func WarnWithCtx(ctx context.Context, msg string) {
 // ErrorWithCtx logs a message at SeverityError.
 func ErrorWithCtx(ctx context.Context, msg string) {
 	logWithSpan(os.Stdout, SeverityError, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), msg)
+}
+
+// ReportErrorWithCtx outputs a log with stacktrace so that error reporting can recognize the error.
+func ReportErrorWithCtx(ctx context.Context, msg string) {
+	logWithSpan(os.Stdout, SeverityError, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
 }
