@@ -43,6 +43,11 @@ func main() {
 	slog.ErrorWithSpan(span, "ErrorWithSpan/error message")
 	slog.ErrorWithCtx(ctx, "ErrorWithCtx/error message")
 	sleep()
+
+	slog.ReportError("ReportError/error message")
+	slog.ReportErrorWithSpan(span, "ErrorWithSpan/error message")
+	slog.ReportErrorWithCtx(ctx, "ErrorWithCtx/error message")
+	sleep()
 }
 
 func sleep() { time.Sleep(500 * time.Millisecond) }
