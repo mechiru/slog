@@ -20,7 +20,7 @@ func TestSetup(t *testing.T) {
 }
 
 func TestEnabled(t *testing.T) {
-	logLevel = SeverityInfo
+	severity = SeverityInfo
 
 	for _, c := range []struct {
 		in   Severity
@@ -70,7 +70,7 @@ func TestLog(t *testing.T) {
 		},
 	} {
 		var buf bytes.Buffer
-		log(&buf, c.in)
+		write(&buf, c.in)
 		got := buf.String()
 		if got != c.want {
 			t.Errorf("got=%v, want=%v", got, c.want)

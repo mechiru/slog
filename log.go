@@ -9,30 +9,46 @@ import (
 	"os"
 	"runtime"
 	"runtime/debug"
+	"strings"
 	"sync"
 
 	"go.opentelemetry.io/otel/api/trace"
 )
 
 var (
-	state uint32 = 0
-
+	state              uint32 = 0
 	stateUninitialized uint32 = 0
 	stateInitialized   uint32 = 1
 
 	mu sync.Mutex
 
 	projectID string
-	logLevel  Severity = SeverityDebug
+	severity  Severity = SeverityDebug
 )
 
 // An Option is an option for a slog package.
 type Option func()
 
-// WithSeverity returns an Option that specifies a log level.
-// Default log level is SeverityDebug.
-func WithSeverity(lvl Severity) Option {
-	return func() { logLevel = lvl }
+// WithSeverity returns an Option that specifies a severity.
+// Default severity is SeverityDebug.
+func WithSeverity(s Severity) Option {
+	return func() { severity = s }
+}
+
+// WithLogLevel returns an Option that specifies a log level.
+func WithLogLevel(lvl string) Option {
+	return func() {
+		switch strings.ToLower(lvl) {
+		case "error":
+			severity = SeverityError
+		case "warning":
+			severity = SeverityWarning
+		case "info":
+			severity = SeverityInfo
+		case "debug":
+			severity = SeverityDebug
+		}
+	}
 }
 
 var errInitialized = errors.New("slog is already initialized")
@@ -51,11 +67,12 @@ func Setup(traceProjectID string, opts ...Option) error {
 		opt()
 	}
 	state = stateInitialized
+
 	return nil
 }
 
 // Enabled decides whether a given logging level is enabled when logging a message.
-func Enabled(lvl Severity) bool { return lvl >= logLevel }
+func Enabled(s Severity) bool { return s >= severity }
 
 // Severity is implementation of https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#LogSeverity.
 type Severity uint32
@@ -119,7 +136,8 @@ type SourceLocation struct {
 	Function string `json:"function,omitempty"`
 }
 
-func newSourceLocation(pc uintptr, file string, line int, ok bool) *SourceLocation {
+func location(skip int) *SourceLocation {
+	pc, file, line, ok := runtime.Caller(skip + 1)
 	if !ok {
 		return nil
 	}
@@ -136,115 +154,273 @@ func newSourceLocation(pc uintptr, file string, line int, ok bool) *SourceLocati
 	}
 }
 
-func log(w io.Writer, entry Entry) {
-	buf, err := json.Marshal(entry)
-	if err == nil {
-		w.Write(append(buf, '\n'))
-	}
+func write(w io.Writer, entry Entry) error {
+	enc := json.NewEncoder(w)
+	return enc.Encode(entry)
 }
 
-func logWithLevel(w io.Writer, s Severity, loc *SourceLocation, msg string) {
-	if Enabled(s) {
-		log(w, Entry{
+func log(s Severity, msg string) error {
+	return write(os.Stdout, Entry{
+		Severity:       s.String(),
+		SourceLocation: location(2),
+		Message:        msg,
+	})
+}
+
+// Debug logs a message at SeverityDebug.
+func Debug(msg string) (err error) {
+	if Enabled(SeverityDebug) {
+		return log(SeverityDebug, msg)
+	}
+	return
+}
+
+// Debugf logs a message at SeverityDebug.
+func Debugf(format string, a ...interface{}) (err error) {
+	if Enabled(SeverityDebug) {
+		return log(SeverityDebug, fmt.Sprintf(format, a...))
+	}
+	return
+}
+
+// Info logs a message at SeverityInfo.
+func Info(msg string) (err error) {
+	if Enabled(SeverityInfo) {
+		return log(SeverityInfo, msg)
+	}
+	return
+}
+
+// Infof logs a message at SeverityInfo.
+func Infof(format string, a ...interface{}) (err error) {
+	if Enabled(SeverityInfo) {
+		return log(SeverityInfo, fmt.Sprintf(format, a...))
+	}
+	return
+}
+
+// Warn logs a message at SeverityWarning.
+func Warn(msg string) (err error) {
+	if Enabled(SeverityWarning) {
+		return log(SeverityWarning, msg)
+	}
+	return
+}
+
+// Warnf logs a message at SeverityWarning.
+func Warnf(format string, a ...interface{}) (err error) {
+	if Enabled(SeverityWarning) {
+		return log(SeverityWarning, fmt.Sprintf(format, a...))
+	}
+	return
+}
+
+// Error logs a message at SeverityError.
+func Error(msg string) (err error) {
+	if Enabled(SeverityError) {
+		return log(SeverityError, msg)
+	}
+	return
+}
+
+// Errorf logs a message at SeverityError.
+func Errorf(format string, a ...interface{}) (err error) {
+	if Enabled(SeverityError) {
+		return log(SeverityError, fmt.Sprintf(format, a...))
+	}
+	return
+}
+
+// ReportError outputs a log with stacktrace so that error reporting can recognize the error.
+func ReportError(msg string) (err error) {
+	if Enabled(SeverityError) {
+		return log(SeverityError, fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
+	}
+	return
+}
+
+// ReportErrorf outputs a log with stacktrace so that error reporting can recognize the error.
+func ReportErrorf(format string, a ...interface{}) (err error) {
+	if Enabled(SeverityError) {
+		return log(SeverityError, fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))))
+	}
+	return
+}
+
+func logWithSpan(s Severity, span trace.Span, msg string) error {
+	if spanCtx := span.SpanContext(); span.IsRecording() && spanCtx.HasTraceID() && spanCtx.HasSpanID() {
+		return write(os.Stdout, Entry{
 			Severity:       s.String(),
+			Trace:          fmt.Sprintf("projects/%s/traces/%s", projectID, spanCtx.TraceID.String()),
+			SpanID:         spanCtx.SpanID.String(),
+			SourceLocation: location(2),
 			Message:        msg,
-			SourceLocation: loc,
+		})
+	} else {
+		return write(os.Stdout, Entry{
+			Severity:       s.String(),
+			SourceLocation: location(2),
+			Message:        msg,
 		})
 	}
 }
 
-// Debug logs a message at SeverityDebug.
-func Debug(msg string) {
-	logWithLevel(os.Stdout, SeverityDebug, newSourceLocation(runtime.Caller(1)), msg)
-}
-
-// Info logs a message at SeverityInfo.
-func Info(msg string) {
-	logWithLevel(os.Stdout, SeverityInfo, newSourceLocation(runtime.Caller(1)), msg)
-}
-
-// Warn logs a message at SeverityWarning.
-func Warn(msg string) {
-	logWithLevel(os.Stdout, SeverityWarning, newSourceLocation(runtime.Caller(1)), msg)
-}
-
-// Error logs a message at SeverityError.
-func Error(msg string) {
-	logWithLevel(os.Stdout, SeverityError, newSourceLocation(runtime.Caller(1)), msg)
-}
-
-// ReportError outputs a log with stacktrace so that error reporting can recognize the error.
-func ReportError(msg string) {
-	logWithLevel(os.Stdout, SeverityError, newSourceLocation(runtime.Caller(1)), fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
-}
-
-func logWithSpan(w io.Writer, s Severity, span trace.Span, loc *SourceLocation, msg string) {
-	if Enabled(s) {
-		spanCtx := span.SpanContext()
-		if span.IsRecording() && spanCtx.HasTraceID() && spanCtx.HasSpanID() {
-			log(w, Entry{
-				Severity:       s.String(),
-				Trace:          fmt.Sprintf("projects/%s/traces/%s", projectID, spanCtx.TraceID.String()),
-				SpanID:         spanCtx.SpanID.String(),
-				SourceLocation: loc,
-				Message:        msg,
-			})
-		} else {
-			log(w, Entry{
-				Severity:       s.String(),
-				SourceLocation: loc,
-				Message:        msg,
-			})
-		}
-	}
-}
-
 // DebugWithSpan logs a message at SeverityDebug.
-func DebugWithSpan(span trace.Span, msg string) {
-	logWithSpan(os.Stdout, SeverityDebug, span, newSourceLocation(runtime.Caller(1)), msg)
+func DebugWithSpan(span trace.Span, msg string) (err error) {
+	if Enabled(SeverityDebug) {
+		return logWithSpan(SeverityDebug, span, msg)
+	}
+	return
+}
+
+// DebugWithSpanf logs a message at SeverityDebug.
+func DebugWithSpanf(span trace.Span, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityDebug) {
+		return logWithSpan(SeverityDebug, span, fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // InfoWithSpan logs a message at SeverityInfo.
-func InfoWithSpan(span trace.Span, msg string) {
-	logWithSpan(os.Stdout, SeverityInfo, span, newSourceLocation(runtime.Caller(1)), msg)
+func InfoWithSpan(span trace.Span, msg string) (err error) {
+	if Enabled(SeverityInfo) {
+		return logWithSpan(SeverityInfo, span, msg)
+	}
+	return
+}
+
+// InfoWithSpanf logs a message at SeverityInfo.
+func InfoWithSpanf(span trace.Span, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityInfo) {
+		return logWithSpan(SeverityInfo, span, fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // WarnWithSpan logs a message at SeverityWarning.
-func WarnWithSpan(span trace.Span, msg string) {
-	logWithSpan(os.Stdout, SeverityWarning, span, newSourceLocation(runtime.Caller(1)), msg)
+func WarnWithSpan(span trace.Span, msg string) (err error) {
+	if Enabled(SeverityWarning) {
+		return logWithSpan(SeverityWarning, span, msg)
+	}
+	return
+}
+
+// WarnWithSpanf logs a message at SeverityWarning.
+func WarnWithSpanf(span trace.Span, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityWarning) {
+		return logWithSpan(SeverityWarning, span, fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // ErrorWithSpan logs a message at SeverityError.
-func ErrorWithSpan(span trace.Span, msg string) {
-	logWithSpan(os.Stdout, SeverityError, span, newSourceLocation(runtime.Caller(1)), msg)
+func ErrorWithSpan(span trace.Span, msg string) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, span, msg)
+	}
+	return
+}
+
+// ErrorWithSpanf logs a message at SeverityError.
+func ErrorWithSpanf(span trace.Span, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, span, fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // ReportErrorWithSpan outputs a log with stacktrace so that error reporting can recognize the error.
-func ReportErrorWithSpan(span trace.Span, msg string) {
-	logWithSpan(os.Stdout, SeverityError, span, newSourceLocation(runtime.Caller(1)), fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
+func ReportErrorWithSpan(span trace.Span, msg string) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, span, fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
+	}
+	return
+}
+
+// ReportErrorWithSpanf outputs a log with stacktrace so that error reporting can recognize the error.
+func ReportErrorWithSpanf(span trace.Span, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, span, fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))))
+	}
+	return
 }
 
 // DebugWithCtx logs a message at SeverityDebug.
-func DebugWithCtx(ctx context.Context, msg string) {
-	logWithSpan(os.Stdout, SeverityDebug, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), msg)
+func DebugWithCtx(ctx context.Context, msg string) (err error) {
+	if Enabled(SeverityDebug) {
+		return logWithSpan(SeverityDebug, trace.SpanFromContext(ctx), msg)
+	}
+	return
+}
+
+// DebugWithCtxf logs a message at SeverityDebug.
+func DebugWithCtxf(ctx context.Context, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityDebug) {
+		return logWithSpan(SeverityDebug, trace.SpanFromContext(ctx), fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // InfoWithCtx logs a message at SeverityInfo.
-func InfoWithCtx(ctx context.Context, msg string) {
-	logWithSpan(os.Stdout, SeverityInfo, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), msg)
+func InfoWithCtx(ctx context.Context, msg string) (err error) {
+	if Enabled(SeverityInfo) {
+		return logWithSpan(SeverityInfo, trace.SpanFromContext(ctx), msg)
+	}
+	return
+}
+
+// InfoWithCtxf logs a message at SeverityInfo.
+func InfoWithCtxf(ctx context.Context, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityInfo) {
+		return logWithSpan(SeverityInfo, trace.SpanFromContext(ctx), fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // WarnWithCtx logs a message at SeverityWarning.
-func WarnWithCtx(ctx context.Context, msg string) {
-	logWithSpan(os.Stdout, SeverityWarning, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), msg)
+func WarnWithCtx(ctx context.Context, msg string) (err error) {
+	if Enabled(SeverityWarning) {
+		return logWithSpan(SeverityWarning, trace.SpanFromContext(ctx), msg)
+	}
+	return
+}
+
+// WarnWithCtxf logs a message at SeverityWarning.
+func WarnWithCtxf(ctx context.Context, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityWarning) {
+		return logWithSpan(SeverityWarning, trace.SpanFromContext(ctx), fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // ErrorWithCtx logs a message at SeverityError.
-func ErrorWithCtx(ctx context.Context, msg string) {
-	logWithSpan(os.Stdout, SeverityError, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), msg)
+func ErrorWithCtx(ctx context.Context, msg string) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, trace.SpanFromContext(ctx), msg)
+	}
+	return
+}
+
+// ErrorWithCtxf logs a message at SeverityError.
+func ErrorWithCtxf(ctx context.Context, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, trace.SpanFromContext(ctx), fmt.Sprintf(format, a...))
+	}
+	return
 }
 
 // ReportErrorWithCtx outputs a log with stacktrace so that error reporting can recognize the error.
-func ReportErrorWithCtx(ctx context.Context, msg string) {
-	logWithSpan(os.Stdout, SeverityError, trace.SpanFromContext(ctx), newSourceLocation(runtime.Caller(1)), fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
+func ReportErrorWithCtx(ctx context.Context, msg string) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, trace.SpanFromContext(ctx), fmt.Sprintf("%s\n%s", msg, string(debug.Stack())))
+	}
+	return
+}
+
+// ReportErrorWithCtx outputs a log with stacktrace so that error reporting can recognize the error.
+func ReportErrorWithCtxf(ctx context.Context, format string, a ...interface{}) (err error) {
+	if Enabled(SeverityError) {
+		return logWithSpan(SeverityError, trace.SpanFromContext(ctx), fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))))
+	}
+	return
 }
