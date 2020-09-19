@@ -9,7 +9,7 @@ func TestSetup(t *testing.T) {
 	for _, c := range []struct {
 		want error
 	}{
-		{error(nil)},
+		{nil},
 		{errInitialized},
 	} {
 		got := Setup("local")

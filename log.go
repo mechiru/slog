@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	state              uint32 = 0
+	state              uint32 = stateUninitialized
 	stateUninitialized uint32 = 0
 	stateInitialized   uint32 = 1
 
