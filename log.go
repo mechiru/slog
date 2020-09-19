@@ -37,18 +37,7 @@ func WithSeverity(s Severity) Option {
 
 // WithLogLevel returns an Option that specifies a log level.
 func WithLogLevel(lvl string) Option {
-	return func() {
-		switch strings.ToLower(lvl) {
-		case "error":
-			severity = SeverityError
-		case "warning":
-			severity = SeverityWarning
-		case "info":
-			severity = SeverityInfo
-		case "debug":
-			severity = SeverityDebug
-		}
-	}
+	return func() { severity = toSeverity(lvl) }
 }
 
 var errInitialized = errors.New("slog is already initialized")
@@ -101,6 +90,16 @@ const (
 var severities = []string{"DEFAULT", "DEBUG", "INFO", "NOTICE", "WARNING", "ERROR", "CRITICAL", "ALERT", "EMERGENCY"}
 
 func (s Severity) String() string { return severities[int(s)] }
+
+func toSeverity(lvl string) Severity {
+	lvl = strings.ToUpper(lvl)
+	for idx, s := range severities {
+		if lvl == s {
+			return Severity(idx)
+		}
+	}
+	return SeverityDefault
+}
 
 // Entry is a log entry.
 // See https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry.

@@ -55,6 +55,24 @@ func TestString(t *testing.T) {
 	}
 }
 
+func TestToSeverity(t *testing.T) {
+	for _, c := range []struct {
+		in   string
+		want Severity
+	}{
+		{"debug", SeverityDebug},
+		{"info", SeverityInfo},
+		{"warning", SeverityWarning},
+		{"error", SeverityError},
+		{"unknown", SeverityDefault},
+	} {
+		got := toSeverity(c.in)
+		if got != c.want {
+			t.Errorf("got=%v, want=%v", got, c.want)
+		}
+	}
+}
+
 func TestLog(t *testing.T) {
 	for _, c := range []struct {
 		in   Entry
