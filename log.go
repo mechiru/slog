@@ -154,8 +154,7 @@ func location(skip int) *SourceLocation {
 }
 
 func write(w io.Writer, entry Entry) error {
-	enc := json.NewEncoder(w)
-	return enc.Encode(entry)
+	return json.NewEncoder(w).Encode(entry)
 }
 
 func log(s Severity, msg string) error {
