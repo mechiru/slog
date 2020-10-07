@@ -3,6 +3,7 @@
     "config:base"
   ],
   "labels": ["renovate"],
+  "postUpdateOptions": ["gomodTidy"],
   "timezone": "Asia/Tokyo",
   "schedule": ["before 5am"]
 }
