@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"os"
 	"time"
 
@@ -17,11 +18,14 @@ func main() {
 	slog.Setup(projectID /*, slog.WithSeverity(slog.SeverityWarning), slog.WithLogLevel("warning")*/)
 
 	ctx := context.Background()
-	setupExporter(ctx, projectID)
 
-	tr := global.Tracer("tracer")
+	flush, err := setupExporter(ctx, projectID)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer flush()
 
-	ctx, span := tr.Start(ctx, "github.com/mechiru/slog/example/main")
+	ctx, span := global.Tracer("tracer").Start(ctx, "github.com/mechiru/slog/example/main")
 	defer span.End()
 
 	slog.Debug("Debug/debug message")
@@ -67,20 +71,13 @@ func main() {
 
 func sleep() { time.Sleep(500 * time.Millisecond) }
 
-func setupExporter(ctx context.Context, projectID string) error {
-	exporter, err := texporter.NewExporter(
-		texporter.WithContext(ctx),
-		texporter.WithProjectID(projectID),
+func setupExporter(ctx context.Context, projectID string) (flush func(), err error) {
+	_, flush, err = texporter.InstallNewPipeline(
+		[]texporter.Option{
+			texporter.WithProjectID(projectID),
+			texporter.WithContext(ctx),
+		},
+		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 	)
-	if err != nil {
-		return err
-	}
-
-	tp, err := sdktrace.NewProvider(sdktrace.WithSyncer(exporter))
-	if err != nil {
-		return err
-	}
-
-	global.SetTraceProvider(tp)
-	return nil
+	return
 }

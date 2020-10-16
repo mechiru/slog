@@ -7,8 +7,8 @@ spec:
     spec:
       containers:
       - name: slog-example
-        image: mechiru/slog-example:v0.2.0
+        image: mechiru/slog-example:v0.12.1
         env:
-          - name: PROJECT
-            value: "your-project-id"
+        - name: PROJECT
+          value: your-project-id
       restartPolicy: OnFailure
