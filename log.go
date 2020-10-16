@@ -240,7 +240,7 @@ func ReportError(msg string) (err error) {
 // ReportErrorf outputs a log with stacktrace so that error reporting can recognize the error.
 func ReportErrorf(format string, a ...interface{}) (err error) {
 	if Enabled(SeverityError) {
-		return log(SeverityError, fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))))
+		return log(SeverityError, fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))...))
 	}
 	return
 }
@@ -338,7 +338,7 @@ func ReportErrorWithSpan(span trace.Span, msg string) (err error) {
 // ReportErrorWithSpanf outputs a log with stacktrace so that error reporting can recognize the error.
 func ReportErrorWithSpanf(span trace.Span, format string, a ...interface{}) (err error) {
 	if Enabled(SeverityError) {
-		return logWithSpan(SeverityError, span, fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))))
+		return logWithSpan(SeverityError, span, fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))...))
 	}
 	return
 }
@@ -418,7 +418,7 @@ func ReportErrorWithCtx(ctx context.Context, msg string) (err error) {
 // ReportErrorWithCtx outputs a log with stacktrace so that error reporting can recognize the error.
 func ReportErrorWithCtxf(ctx context.Context, format string, a ...interface{}) (err error) {
 	if Enabled(SeverityError) {
-		return logWithSpan(SeverityError, trace.SpanFromContext(ctx), fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))))
+		return logWithSpan(SeverityError, trace.SpanFromContext(ctx), fmt.Sprintf(format+"\n%s", append(a, string(debug.Stack()))...))
 	}
 	return
 }
