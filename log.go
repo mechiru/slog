@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
