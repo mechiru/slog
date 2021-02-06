@@ -3,7 +3,7 @@ module github.com/mechiru/slog/example
 go 1.15
 
 require (
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v0.12.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v0.16.0
 	github.com/mechiru/slog v0.12.1
 	go.opentelemetry.io/otel v0.12.0
 	go.opentelemetry.io/otel/sdk v0.12.0
