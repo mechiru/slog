@@ -249,8 +249,8 @@ func logWithSpan(s Severity, span trace.Span, msg string) error {
 	if spanCtx := span.SpanContext(); span.IsRecording() && spanCtx.HasTraceID() && spanCtx.HasSpanID() {
 		return write(os.Stdout, Entry{
 			Severity:       s.String(),
-			Trace:          fmt.Sprintf("projects/%s/traces/%s", projectID, spanCtx.TraceID.String()),
-			SpanID:         spanCtx.SpanID.String(),
+			Trace:          fmt.Sprintf("projects/%s/traces/%s", projectID, spanCtx.TraceID().String()),
+			SpanID:         spanCtx.SpanID().String(),
 			SourceLocation: location(2),
 			Message:        msg,
 		})
