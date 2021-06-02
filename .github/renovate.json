@@ -1,9 +1,10 @@
 {
   "extends": [
-    "config:base"
+    "config:base",
+    "schedule:weekly"
   ],
   "labels": ["renovate"],
   "postUpdateOptions": ["gomodTidy"],
-  "timezone": "Asia/Tokyo",
-  "schedule": ["before 5am"]
+  "groupName": "all",
+  "ignorePaths": ["example"]
 }
